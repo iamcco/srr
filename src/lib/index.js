@@ -1,4 +1,5 @@
 import React, { Component } from 'react'
+import './index.css'
 import store from './store'
 import PageWrapper from './components/page'
 import emit from './emit'
@@ -6,6 +7,7 @@ import emit from './emit'
 const PUSH = 'push'
 const POP = 'pop'
 
+// temp before srr unmount
 let routes = []
 
 class SRR extends Component {
@@ -17,6 +19,8 @@ class SRR extends Component {
 
     this.onPush = this.onPush.bind(this)
     this.onPop = this.onPop.bind(this)
+    this.doPop = this.doPop.bind(this)
+    this.getCtnRef = this.getCtnRef.bind(this)
   }
 
   componentWillMount () {
@@ -38,11 +42,20 @@ class SRR extends Component {
     emit.removeListener(POP, this.onPop)
   }
 
-  onPop () {
+  doPop () {
     const routes = this.state.routes
     this.setState({
       routes: routes.slice(0, routes.length - 1)
     })
+  }
+
+  onPop () {
+    const routes = this.state.routes
+    if (routes.length && routes.length > 1) {
+      this.setState({
+        routes: routes.concat({...routes.pop(), isPop: true})
+      })
+    }
   }
 
   onPush (data = {}) {
@@ -51,18 +64,35 @@ class SRR extends Component {
     })
   }
 
+  getCtnRef (ref) {
+    this.ctnRef = ref
+  }
+
   render () {
     const {
       routes
     } = this.state
 
     return (
-      <div className='srr' >
+      <div className='srr' ref={this.getCtnRef} >
         {
-          routes.map(({route, param}, idx) => {
+          routes.map(({route, param, isPop}, idx) => {
             const Page = store.getPageByRoute(route)
+            let style = {}
+            if (idx === routes.length - 1) {
+              const ctnWidth = (this.ctnRef && this.ctnRef.offsetWidth) || 0
+              style = {
+                transform: `translateX(${ctnWidth}px)`,
+                transition: 'all 0.3s'
+              }
+            }
             return (
-              <PageWrapper key={idx}>
+              <PageWrapper
+                key={idx}
+                style={style}
+                isPop={isPop}
+                pop={this.doPop}
+              >
                 <Page param={param} />
               </PageWrapper>
             )

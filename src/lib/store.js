@@ -1,7 +1,8 @@
 // page component
 const pages = {}
 /**
- * get
+ * register
+ *
  * @param {string} path
  * @param {element} component
  * @returns {undefined}
