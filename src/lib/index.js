@@ -110,7 +110,10 @@ class SRR extends Component {
       <div className='srr' ref={this.getCtnRef} >
         {
           routes.map(({route, param, isPop, timeStamp}, idx) => {
-            const Page = store.getPageByRoute(route)
+            const {
+              component: Page,
+              param: pathParam
+            } = store.getPageByRoute(route)
             let style = {}
             if (idx === routes.length - 1) {
               const ctnWidth = (this.ctnRef && this.ctnRef.offsetWidth) || 0
@@ -126,7 +129,10 @@ class SRR extends Component {
                 isPop={isPop}
                 pop={this.doPop}
               >
-                <Page param={param} />
+                <Page
+                  param={param}
+                  pathParam={pathParam}
+                />
               </PageWrapper>
             )
           })

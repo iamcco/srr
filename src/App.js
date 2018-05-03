@@ -13,9 +13,11 @@ SRR.get('/list', () => (
   <div>list</div>
 ))
 
-SRR.get('/detail', () => (
-  <div>detail</div>
-))
+SRR.get('/detail/:name', (props) => {
+  return (
+    <div>detail: {props.pathParam.name}</div>
+  )
+})
 
 class App extends Component {
   render () {
