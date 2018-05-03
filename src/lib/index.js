@@ -6,6 +6,7 @@ import emit from './emit'
 
 const PUSH = 'push'
 const POP = 'pop'
+const history = window.history
 
 // temp before srr unmount
 let routes = []
@@ -21,13 +22,20 @@ class SRR extends Component {
     this.onPop = this.onPop.bind(this)
     this.doPop = this.doPop.bind(this)
     this.getCtnRef = this.getCtnRef.bind(this)
+    this.onPopstate = this.onPopstate.bind(this)
   }
 
   componentWillMount () {
     if (routes && routes.length) {
       this.setState({
-        routes: routes.reduce((pre, next) => {
+        routes: routes.reduce((pre, next, idx) => {
+          this.currentState = next
           pre.push(next)
+          if (idx === 0) {
+            history.replaceState(next, null, next.route)
+          } else {
+            history.pushState(next, null, next.route)
+          }
           return pre
         }, this.state.routes.slice())
       })
@@ -35,11 +43,13 @@ class SRR extends Component {
     routes = null
     emit.addListener(PUSH, this.onPush)
     emit.addListener(POP, this.onPop)
+    window.addEventListener('popstate', this.onPopstate)
   }
 
   componentWillUnmout () {
     emit.removeListener(PUSH, this.onPush)
     emit.removeListener(POP, this.onPop)
+    window.removeEventListener('popstate', this.onPopstate)
   }
 
   doPop () {
@@ -49,8 +59,26 @@ class SRR extends Component {
     })
   }
 
-  onPop () {
-    const routes = this.state.routes
+  onPopstate () {
+    const lastState = this.currentState
+    this.currentState = history.state
+    if (this.currentState.timeStamp < lastState.timeStamp) {
+      // back
+      if (this.state.routes.length === 1) {
+        this.onPop(this.currentState)
+      } else {
+        this.onPop()
+      }
+    } else {
+      // forward
+      setTimeout(() => {
+        this.onPush(this.currentState, false)
+      }, 100)
+    }
+  }
+
+  onPop (data) {
+    const routes = data ? [].concat(data, this.state.routes) : this.state.routes
     if (routes.length && routes.length > 1) {
       this.setState({
         routes: routes.concat({...routes.pop(), isPop: true})
@@ -58,9 +86,14 @@ class SRR extends Component {
     }
   }
 
-  onPush (data = {}) {
+  onPush (data = {}, pushState = true) {
+    this.currentState = data
     this.setState({
       routes: this.state.routes.concat(data)
+    }, () => {
+      if (pushState) {
+        history.pushState(data, null, data.route)
+      }
     })
   }
 
@@ -76,7 +109,7 @@ class SRR extends Component {
     return (
       <div className='srr' ref={this.getCtnRef} >
         {
-          routes.map(({route, param, isPop}, idx) => {
+          routes.map(({route, param, isPop, timeStamp}, idx) => {
             const Page = store.getPageByRoute(route)
             let style = {}
             if (idx === routes.length - 1) {
@@ -88,7 +121,7 @@ class SRR extends Component {
             }
             return (
               <PageWrapper
-                key={idx}
+                key={`${timeStamp}`}
                 style={style}
                 isPop={isPop}
                 pop={this.doPop}
@@ -103,18 +136,9 @@ class SRR extends Component {
   }
 }
 
-SRR.get = (route, page) => {
-  store.register(route, page)
-  if (routes && routes.length === 0) {
-    routes.push({
-      route,
-      param: {}
-    })
-  }
-}
-
 SRR.open = (route, param) => {
   const data = {
+    timeStamp: Date.now(),
     route,
     param
   }
@@ -134,6 +158,13 @@ SRR.back = () => {
     routes.pop()
   } else {
     emit.trigger(POP)
+  }
+}
+
+SRR.get = (route, page) => {
+  store.register(route, page)
+  if (routes && routes.length === 0) {
+    SRR.open(route, {})
   }
 }
 
